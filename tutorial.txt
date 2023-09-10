@@ -1,0 +1,10 @@
+1- install protoc
+https://github.com/protocolbuffers/protobuf/releases/ or https://grpc.io/docs/protoc-installation/
+
+2- follow docs
+https://grpc.io/docs/languages/go/quickstart/
+
+
+3-protoc code generation
+$ cd proto
+$ protoc --go_out=. --go-grpc_out=. course_category.proto
