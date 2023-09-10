@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"log"
 	"net"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -14,22 +13,24 @@ import (
 )
 
 func main() {
-	db, err := sql.Open("sqlite3", "./data.db")
+	db, err := sql.Open("sqlite3", "./db.sqlite")
 	if err != nil {
-		log.Fatalf("Err to open db: %v", err)
+		panic(err)
 	}
 	defer db.Close()
 
 	categoryDb := database.NewCategory(db)
 	categoryService := service.NewCategoryService(*categoryDb)
+
 	grpcServer := grpc.NewServer()
-	reflection.Register(grpcServer)
 	pb.RegisterCategoryServiceServer(grpcServer, categoryService)
+	reflection.Register(grpcServer)
 
 	lis, err := net.Listen("tcp", ":50051")
 	if err != nil {
 		panic(err)
 	}
+
 	if err := grpcServer.Serve(lis); err != nil {
 		panic(err)
 	}
