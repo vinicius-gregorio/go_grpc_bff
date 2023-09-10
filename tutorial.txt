@@ -8,3 +8,7 @@ https://grpc.io/docs/languages/go/quickstart/
 3-protoc code generation
 $ cd proto
 $ protoc --go_out=. --go-grpc_out=. course_category.proto
+
+or
+$ protoc --go_out=. --go-grpc_out=. proto/course_category.proto
+
