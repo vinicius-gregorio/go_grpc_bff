@@ -6,8 +6,6 @@ import (
 
 	"github.com/vinicius-gregorio/go_grpc_bff/internal/database"
 	"github.com/vinicius-gregorio/go_grpc_bff/internal/pb"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type CategoryService struct {
@@ -21,79 +19,104 @@ func NewCategoryService(categoryDB database.Category) *CategoryService {
 	}
 }
 
-func (c *CategoryService) CreateCategory(ctx context.Context, in *pb.CreateCategoryRequest) (*pb.CategoryResponse, error) {
+func (c *CategoryService) CreateCategory(ctx context.Context, in *pb.CreateCategoryRequest) (*pb.Category, error) {
 	category, err := c.CategoryDB.Create(in.Name, in.Description)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "error creating category: %v", err)
+		return nil, err
 	}
 
-	categoryResp := &pb.Category{
+	categoryResponse := &pb.Category{
 		Id:          category.ID,
 		Name:        category.Name,
 		Description: category.Description,
 	}
 
-	return &pb.CategoryResponse{
-		Category: categoryResp,
-	}, nil
+	return categoryResponse, nil
 }
 
 func (c *CategoryService) ListCategories(ctx context.Context, in *pb.Blank) (*pb.CategoryList, error) {
 	categories, err := c.CategoryDB.FindAll()
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "error listing categories: %v", err)
+		return nil, err
 	}
 
-	var categoriesResp []*pb.Category
+	var categoriesResponse []*pb.Category
+
 	for _, category := range categories {
-		categoryResp := &pb.Category{
+		categoryResponse := &pb.Category{
 			Id:          category.ID,
 			Name:        category.Name,
 			Description: category.Description,
 		}
-		categoriesResp = append(categoriesResp, categoryResp)
+
+		categoriesResponse = append(categoriesResponse, categoryResponse)
 	}
 
-	return &pb.CategoryList{
-		Categories: categoriesResp,
-	}, nil
+	return &pb.CategoryList{Categories: categoriesResponse}, nil
 }
 
-func (c *CategoryService) GetCategory(ctx context.Context, in *pb.CategoryGetRequest) (*pb.CategoryResponse, error) {
+func (c *CategoryService) GetCategory(ctx context.Context, in *pb.CategoryGetRequest) (*pb.Category, error) {
 	category, err := c.CategoryDB.FindByID(in.Id)
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "error getting category: %v", err)
+		return nil, err
 	}
 
-	categoryResp := &pb.Category{
+	categoryResponse := &pb.Category{
 		Id:          category.ID,
 		Name:        category.Name,
 		Description: category.Description,
 	}
 
-	return &pb.CategoryResponse{
-		Category: categoryResp,
-	}, nil
+	return categoryResponse, nil
 }
 
 func (c *CategoryService) CreateCategoryStream(stream pb.CategoryService_CreateCategoryStreamServer) error {
-	categories := pb.CategoryList{}
+	categories := &pb.CategoryList{}
+
 	for {
 		category, err := stream.Recv()
 		if err == io.EOF {
-			return stream.SendAndClose(&categories) // aqui
+			return stream.SendAndClose(categories)
 		}
 		if err != nil {
 			return err
 		}
-		catResult, err := c.CategoryDB.Create(category.Name, category.Description)
+
+		categoryResult, err := c.CategoryDB.Create(category.Name, category.Description)
 		if err != nil {
 			return err
 		}
+
 		categories.Categories = append(categories.Categories, &pb.Category{
-			Id:          catResult.ID,
-			Name:        catResult.Name,
-			Description: catResult.Description,
+			Id:          categoryResult.ID,
+			Name:        categoryResult.Name,
+			Description: categoryResult.Description,
 		})
+	}
+}
+
+func (c *CategoryService) CreateCategoryStreamBidirectional(stream pb.CategoryService_CreateCategoryStreamBidirectionalServer) error {
+	for {
+		category, err := stream.Recv()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+
+		categoryResult, err := c.CategoryDB.Create(category.Name, category.Description)
+		if err != nil {
+			return err
+		}
+
+		err = stream.Send(&pb.Category{
+			Id:          categoryResult.ID,
+			Name:        categoryResult.Name,
+			Description: categoryResult.Description,
+		})
+		if err != nil {
+			return err
+		}
 	}
 }
